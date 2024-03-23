@@ -3,18 +3,18 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 class NaiveBayes():
-    def __init__(self, alpha=1, vectorizer="tfidf", remove_stop_words=False):
+    def __init__(self, alpha=1, tokenizer="count", remove_stop_words=False):
         self.model = MultinomialNB(alpha=alpha)
 
         if remove_stop_words:
-            stopwords = stopwords.words('english') + [",", ".", "'s", "'ve", "'t", ]
+            stop_words = stopwords.words('english') + [",", ".", "'m", "'ve", "'s", "'t", "'ll"]
         else:
-            stopwords = []  
+            stop_words = []
 
-        if vectorizer == "count":
-            self.vectorizer = CountVectorizer(stop_words=stopwords)
+        if tokenizer == "count":
+            self.vectorizer = TfidfVectorizer(stop_words=stop_words)
         else:
-            self.vectorizer = TfidfVectorizer(stop_words=stopwords)
+            self.vectorizer = CountVectorizer(stop_words=stop_words)
 
     def train(self, train_x, train_y):
         train_feats = self.vectorizer.fit_transform(train_x)
