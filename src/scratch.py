@@ -1,14 +1,7 @@
-from nltk.tag import pos_tag
-from feature_extractor import regex_tokenize
+from sklearn.preprocessing import OneHotEncoder
+import numpy as np
 
-sentence = "The dosages of L-NMMA and indomethacin infused were selected on the basis of previous experiments that found a reduction in muscle blood flow during exercise (28)."
+a = np.linspace(1, 10, 10)
 
-tags = pos_tag(regex_tokenize(sentence), tagset="universal")
+print(a.reshape((-1, 1)))
 
-counts = {}
-for _, t in tags:
-    if t not in counts:
-        counts[t] = 0
-    counts[t] += 1
-
-print(counts)

@@ -2,8 +2,6 @@ import json
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from feature_extractor import extract_features
-
 def load_dataset():
     paths = [r"../data/scicite/train.jsonl", 
              r"../data/scicite/dev.jsonl",
@@ -40,15 +38,16 @@ def load_features(filename):
 
     return data_x, data_y
 
-if __name__ == "__main__":
-    data_x, data_y = load_dataset()
 
-    train_x, test_x, train_y, test_y = train_test_split(data_x, data_y, test_size=0.2)
+# if __name__ == "__main__":
+#     data_x, data_y = load_dataset()
 
-    feat_sel = ["pos_tag", "word_vector", "word_embedding"]
+#     train_x, test_x, train_y, test_y = train_test_split(data_x, data_y, test_size=0.2)
 
-    train_feats = extract_features(train_x, feat_sel, True)
-    test_feats = extract_features(test_x, feat_sel, False)
+#     feat_sel = ["pos_tag", "word_vector", "word_embedding"]
 
-    save_features(train_feats, train_y, "train.csv")
-    save_features(test_feats, test_y, "test.csv")
+#     train_feats = extract_features(train_x, feat_sel, True)
+#     test_feats = extract_features(test_x, feat_sel, False)
+
+#     save_features(train_feats, train_y, "train.csv")
+#     save_features(test_feats, test_y, "test.csv")
