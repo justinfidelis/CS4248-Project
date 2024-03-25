@@ -8,6 +8,14 @@ from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 
+# So initialise this and use it to extract features from the dataset
+# feature_list is a list of the features that you want to extract
+# currently supports ["pos_tag", "word_vector", "word_embedding"]
+# The function to extract features is just extract_features()
+# set train=True for extracting features for the training dataset,
+# Vectorizer and SVD for "word_vector" features needs to be fit during training
+# train=False for test dataset
+
 class feature_extractor():
     def __init__(self, feature_list, tokenizer="regex", word_vectorizer="count"):
         self.feature_list = feature_list
@@ -92,19 +100,17 @@ class feature_extractor():
         we_cols = [f"we{i}" for i in range(we_features.shape[1])]
         return pd.DataFrame(we_features, columns = we_cols)
 
-    def extract_features(self, sentences, feature_selection, train=False):
-        feature_selection = set(feature_selection)
-
+    def extract_features(self, sentences, train=False):
         tokens = self.tokenize_sentences(sentences)
 
         feature_ls = []
-        if "pos_tag" in feature_selection:
+        if "pos_tag" in self.feature_list:
             pos_tag_feats = self.get_pos_tag_features(tokens)
             feature_ls.append(pos_tag_feats)
-        if "word_vector" in feature_selection:
+        if "word_vector" in self.feature_list:
             wv_feats = self.get_word_vector_features(sentences, train=train)
             feature_ls.append(wv_feats)
-        if "word_embedding" in feature_selection:
+        if "word_embedding" in self.feature_list:
             we_feats = self.get_word_embedding_features(sentences)
             feature_ls.append(we_feats)
 

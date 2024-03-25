@@ -5,7 +5,7 @@ from sklearn.preprocessing import OneHotEncoder
 class MLP():
     def __init__(self):
         self.model = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(413,)),
+            tf.keras.layers.InputLayer(input_shape=(413,)),  # This is based on the number of features, I don't really have a cleaner way
             tf.keras.layers.Dense(200, activation="relu"),
             tf.keras.layers.Dense(100, activation="relu"),
             tf.keras.layers.Dense(25, activation="relu"),
