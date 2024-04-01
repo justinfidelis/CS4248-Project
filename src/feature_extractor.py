@@ -16,7 +16,7 @@ from sklearn.decomposition import TruncatedSVD
 # Vectorizer and SVD for "word_vector" features needs to be fit during training
 # train=False for test dataset
 
-class feature_extractor():
+class FeatureExtractor():
     def __init__(self, feature_list, tokenizer="regex", word_vectorizer="count"):
         self.feature_list = feature_list
         self.tokenizer = tokenizer
@@ -27,8 +27,11 @@ class feature_extractor():
             self.vectorizer = CountVectorizer()
         
             self.word_vector_svd = TruncatedSVD(n_components=100)
+
+        if "word_embedding" in feature_list:
+            self.word_embedder = spacy.load("en_core_web_lg")
         
-    def regex_tokenize(string):
+    def regex_tokenize(self, string):
         tokenizer_pattern = r"\b[A-Za-z]+(-[A-Za-z]*)*\b" + r"|" +\
                     r"(?<=[a-z])['][a-z]+" + r"|" +\
                     r"\$[\d]+(,[\d]+)*(\.[\d]+)?" + r"|" +\
@@ -72,7 +75,7 @@ class feature_extractor():
 
         return pd.DataFrame(pos_features)
 
-    def get_word_vector_features(self, sentences, vectorizer="count", train=False):
+    def get_word_vector_features(self, sentences, train=False):
         if train:
             word_vectors = self.vectorizer.fit_transform(sentences)
             wv_features = self.word_vector_svd.fit_transform(word_vectors)
@@ -86,9 +89,8 @@ class feature_extractor():
     def get_word_embedding_features(self, sentences):
         we_features = []
 
-        nlp_lg = spacy.load("en_core_web_lg")
         for sentence in sentences:
-            doc = nlp_lg(sentence)
+            doc = self.word_embedder(sentence)
             we_features.append(doc.vector)
 
             if len(we_features) % 1000 == 0:
