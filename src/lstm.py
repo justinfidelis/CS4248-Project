@@ -38,30 +38,72 @@ class SciCiteDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 
+class SelfAttentionLayer(nn.Module):
+    def __init__(self, feature_size):
+        super(SelfAttentionLayer, self).__init__()
+        self.feature_size = feature_size
+
+        # Linear transformations for Q, K, V from the same source
+        self.key = nn.Linear(feature_size, feature_size)
+        self.query = nn.Linear(feature_size, feature_size)
+        self.value = nn.Linear(feature_size, feature_size)
+
+    def forward(self, x, mask=None):
+        # Apply linear transformations
+        keys = self.key(x)
+        queries = self.query(x)
+        values = self.value(x)
+
+        # Scaled dot-product attention
+        scores = torch.matmul(queries, keys.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.feature_size, dtype=torch.float32))
+
+        # Apply mask (if provided)
+        if mask is not None:
+            scores = scores.masked_fill(mask == 0, -1e9)
+
+        # Apply softmax
+        attention_weights = F.softmax(scores, dim=-1)
+
+        # Multiply weights with values
+        output = torch.matmul(attention_weights, values)
+
+        return output, attention_weights
+
+
 class LSTM(torch.nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_classes, dropout, embedding_matrix):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_classes, dropout, embedding_matrix, attention=False):
         super().__init__()
         self.embeddings = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         self.embeddings.weight.data.copy_(torch.from_numpy(embedding_matrix))
         self.embeddings.weight.requires_grad = False  # freeze embeddings
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
+        self.attention_layer = None
+        if attention:
+            self.attention_layer = SelfAttentionLayer(hidden_dim)
         self.linear = nn.Linear(hidden_dim, num_classes)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         x = self.embeddings(x)
         x = self.dropout(x)
-        lstm_out, (ht, ct) = self.lstm(x)
-        return self.linear(ht[-1])
+        output, (ht, ct) = self.lstm(x)
+        if self.attention_layer is not None:
+            output, _ = self.attention_layer.forward(ht[-1])
+            return self.linear(output)
+        else:
+            return self.linear(ht[-1])
 
 
 class BiLSTM(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_classes, dropout, embedding_matrix):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_classes, dropout, embedding_matrix, attention=False):
         super(BiLSTM, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
         self.embedding.weight = nn.Parameter(torch.tensor(embedding_matrix, dtype=torch.float32))
         self.embedding.weight.requires_grad = False  # freeze embeddings
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, bidirectional=True, batch_first=True)
+        self.attention_layer = None
+        if attention:
+            self.attention_layer = SelfAttentionLayer(hidden_dim * 2)
         self.linear = nn.Linear(hidden_dim * 4, 64)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
@@ -72,6 +114,8 @@ class BiLSTM(nn.Module):
         h_embedding = self.embedding(x)
         # _embedding = torch.squeeze(torch.unsqueeze(h_embedding, 0))
         h_lstm, _ = self.lstm(h_embedding)
+        if self.attention_layer is not None:
+            h_lstm, _ = self.attention_layer.forward(h_lstm)
         avg_pool = torch.mean(h_lstm, 1)
         max_pool, _ = torch.max(h_lstm, 1)
         conc = torch.cat((avg_pool, max_pool), 1)
@@ -200,22 +244,25 @@ def convert_label_to_index(label):
     return label_to_index_dict[label]
 
 
-def get_models_dict(vocab_size, dropout, pretrained_weights):
+def get_models_dict(vocab_size, dropout, pretrained_weights, attention):
     dl_models_dict = {}
+    attention_text = ''
+    if attention:
+        attention_text = 'WithAttention'
     ########################## LSTM #############################################
     model_name = 'LSTM'
-    model = LSTM(vocab_size=vocab_size, embedding_dim=300, hidden_dim=64, num_classes=3, dropout=dropout, embedding_matrix=pretrained_weights)
-    model_checkpoint_path_template = '../saved_models/training/LSTM/dropout_' + str(dropout) + '/trained_model_LSTM'
-    model_path_for_test = '../saved_models/trained_model_LSTM_dropout_0.5_epoch_14.pth'  # Substitute the name of model checkpoint you want to test (can be found in ../saved_models)
+    model = LSTM(vocab_size=vocab_size, embedding_dim=300, hidden_dim=64, num_classes=3, dropout=dropout, embedding_matrix=pretrained_weights, attention=attention)
+    model_checkpoint_path_template = '../saved_models/training/LSTM' + attention_text + '/dropout_' + str(dropout) + '/trained_model_LSTM' + attention_text
+    model_path_for_test = '../saved_models/trained_model_LSTMWithAttention_dropout_0.5_epoch_26.pth'  # Substitute the name of model checkpoint you want to test (can be found in ../saved_models)
 
     dl_models_dict[model_name] = {'model': model, 'model_checkpoint_path_template': model_checkpoint_path_template, 'model_path_for_test': model_path_for_test}
     #############################################################################
 
     ########################## BiLSTM #############################################
     model_name = 'BiLSTM'
-    model = BiLSTM(vocab_size=vocab_size, embedding_dim=300, hidden_dim=64, num_classes=3, dropout=dropout, embedding_matrix=pretrained_weights)
-    model_checkpoint_path_template = '../saved_models/training/BiLSTM/dropout_' + str(dropout) + '/trained_model_BiLSTM'
-    model_path_for_test = '../saved_models/trained_model_BiLSTM_dropout_0.3_epoch_7.pth'  # Substitute the name of model checkpoint you want to test (can be found in ../saved_models)
+    model = BiLSTM(vocab_size=vocab_size, embedding_dim=300, hidden_dim=64, num_classes=3, dropout=dropout, embedding_matrix=pretrained_weights, attention=attention)
+    model_checkpoint_path_template = '../saved_models/training/BiLSTM' + attention_text + '/dropout_' + str(dropout) + '/trained_model_BiLSTM' + attention_text
+    model_path_for_test = '../saved_models/trained_model_BiLSTMWithAttention_dropout_0.5_epoch_9.pth'  # Substitute the name of model checkpoint you want to test (can be found in ../saved_models)
 
     dl_models_dict[model_name] = {'model': model, 'model_checkpoint_path_template': model_checkpoint_path_template, 'model_path_for_test': model_path_for_test}
     #############################################################################
@@ -263,15 +310,15 @@ def prepare_data():
     return train_dl, val_dl, test_dl, vocab_size, pretrained_weights
 
 
-def classify(classifier_name, mode, epochs, lr, dropout):
-    print('Running text classification with {}, mode = {}, lr = {}, dropout = {} ...'.format(classifier_name, mode, lr, dropout))
+def classify(classifier_name, mode, epochs, lr, dropout, attention):
+    print('Running text classification with {}, mode = {}, lr = {}, dropout = {}, attention = {} ...'.format(classifier_name, mode, lr, dropout, attention))
     train_dl, val_dl, test_dl, vocab_size, pretrained_weights = prepare_data()
-    dl_models_dict = get_models_dict(vocab_size, dropout, pretrained_weights)
+    dl_models_dict = get_models_dict(vocab_size, dropout, pretrained_weights, attention)
     model = dl_models_dict[classifier_name]['model']
     model_checkpoint_path_template = dl_models_dict[classifier_name]['model_checkpoint_path_template']
     if mode == 'train':
         trained_model, train_losses, train_f1_scores, val_losses, val_f1_scores = train_model(model, train_dl, val_dl, model_checkpoint_path_template, epochs=epochs, lr=lr)
-        generate_plots(classifier_name, dropout, train_losses, train_f1_scores, val_losses, val_f1_scores)
+        generate_plots(classifier_name, dropout, attention, train_losses, train_f1_scores, val_losses, val_f1_scores)
     elif mode == 'test':
         trained_model = model
         model_path_for_test = dl_models_dict[classifier_name]['model_path_for_test']
@@ -282,7 +329,7 @@ def classify(classifier_name, mode, epochs, lr, dropout):
             preds_y, reals_y = test_model(trained_model, test_dl)
             # np.save('../visualizations/preds_y_' + classifier_name + '_dropout_' + str(dropout) + '.npy', preds_y)
             # np.save('../visualizations/reals_y_' + classifier_name + '_dropout_' + str(dropout) + '.npy', reals_y)
-            calculate_and_display_metrics(classifier_name, preds_y, reals_y, dropout)
+            calculate_and_display_metrics(classifier_name, preds_y, reals_y, dropout, attention)
         else:
             print('Model checkpoint file ' + model_path_for_test + ' does not exist! Please train the model first. Exiting...')
             return None
@@ -291,7 +338,7 @@ def classify(classifier_name, mode, epochs, lr, dropout):
         return None
 
 
-def generate_plots(classifier_name, dropout, train_losses, train_f1_scores, val_losses, val_f1_scores):
+def generate_plots(classifier_name, dropout, attention, train_losses, train_f1_scores, val_losses, val_f1_scores):
     epochs = range(1, len(train_losses) + 1)
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -312,10 +359,13 @@ def generate_plots(classifier_name, dropout, train_losses, train_f1_scores, val_
     axes[1].set_ylabel('f1-score')
     axes[1].set_title('Training & Validation f1-score vs Epoch')
 
-    fig.savefig('../visualizations/dropout_' + str(dropout) + '/' + classifier_name + '_training_vs_validation_loss_f1_score.pdf', format='pdf', bbox_inches='tight')
+    attention_text = ''
+    if attention:
+        attention_text = 'WithAttention'
+    fig.savefig('../visualizations/dropout_' + str(dropout) + '/' + classifier_name + attention_text + '_training_vs_validation_loss_f1_score.pdf', format='pdf', bbox_inches='tight')
 
 
-def calculate_and_display_metrics(classifier_name, preds_y, reals_y, dropout):
+def calculate_and_display_metrics(classifier_name, preds_y, reals_y, dropout, attention):
     accuracy = round(metrics.accuracy_score(reals_y, preds_y), 4)
     precision = round(metrics.precision_score(reals_y, preds_y, average='macro'), 4)
     recall = round(metrics.recall_score(reals_y, preds_y, average='macro'), 4)
@@ -336,7 +386,11 @@ def calculate_and_display_metrics(classifier_name, preds_y, reals_y, dropout):
     plt.title('Confusion Matrix')
     plt.ylabel('Actual')
     plt.xlabel('Predicted')
-    plt.savefig('../visualizations/' + classifier_name + '_dropout_' + str(dropout) + '_confusion_matrix.pdf', format='pdf', bbox_inches='tight')
+
+    attention_text = ''
+    if attention:
+        attention_text = 'WithAttention'
+    plt.savefig('../visualizations/' + classifier_name + attention_text + '_dropout_' + str(dropout) + '_confusion_matrix.pdf', format='pdf', bbox_inches='tight')
 
 
 def train_model(model, train_dl, val_dl, checkpoint_path, epochs=10, lr=0.001):
@@ -422,5 +476,5 @@ if __name__ == '__main__':
     classifier = 'BiLSTM'
     run_mode = 'test'
     n_epochs = 30
-    lr = 0.00005  # 0.0001 for LSTM, 0.00005 for BiLSTM
-    classify(classifier_name=classifier, mode=run_mode, epochs=n_epochs, lr=lr, dropout=0.3)
+    lr = 0.00005  # 0.0001 for LSTM, 0.001 for LSTM with Attention, 0.00005 for BiLSTM, 0.00005 for BiLSTM with Attention
+    classify(classifier_name=classifier, mode=run_mode, epochs=n_epochs, lr=lr, dropout=0.3, attention=True)
