@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import pandas as pd
@@ -9,7 +10,6 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn import metrics
-from src import utils
 import nltk
 from nltk.corpus import stopwords
 nltk.download('stopwords')
@@ -270,8 +270,27 @@ def get_models_dict(vocab_size, dropout, pretrained_weights, attention):
     return dl_models_dict
 
 
+def load_dataset():
+    paths = [r"../../data/scicite/train.jsonl",
+             r"../../data/scicite/dev.jsonl",
+             r"../../data/scicite/test.jsonl"]
+
+    data = []
+
+    for path in paths:
+        with open(path, "r") as f:
+            for line in f:
+                data.append(json.loads(line))
+
+    df = pd.json_normalize(data)
+    df.drop(columns=["label2", "label2_confidence"], inplace=True)
+
+    data_x, data_y = df["string"], df["label"]
+    return data_x, data_y
+
+
 def prepare_data():
-    data_X, data_y = utils.load_dataset()
+    data_X, data_y = load_dataset()
 
     data_clean_X = data_X.apply(clean_text)
     data_y = data_y.apply(convert_label_to_index)
