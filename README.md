@@ -1,7 +1,8 @@
 # CS4248 Project Group 14
 
 This repository contains code used in our evaluation of the performance of different models in classifying citation intent in academic papers.
-Our results and analysis, please refer to the accompanying report
+
+Our results and analysis, please refer to the [accompanying report](https://github.com/justinfidelis/CS4248-Project/blob/main/Report.pdf)
 
 ## Abstract
 In this paper, we explore classifying citation intent in research papers (\textit{background, methods, results}), by applying different architectures and models. Specifically, we focus on three areas: how the models compare on a high level, how specific methods can be used to model task complexity more robustly, and which features best capture semantic information that is most helpful for this task. The RNN variants performs best, but with interesting observations about how they interact with the attention mechanism. In particular, we found a nuanced relationship between model complexity and performance beyond the bias-variance tradeoff, while also observing some subtleties about certain features, such as the differential effects of word and word order on predictions. Ultimately, we hope to demonstrate that interesting insights can be derived on these comparatively simple models.
