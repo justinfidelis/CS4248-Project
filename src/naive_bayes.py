@@ -11,10 +11,10 @@ class NaiveBayes():
         else:
             stop_words = []
 
-        if tokenizer == "count":
-            self.vectorizer = CountVectorizer(stop_words=stop_words)
-        else:
+        if tokenizer == "tfidf":
             self.vectorizer = TfidfVectorizer(stop_words=stop_words)
+        else:
+            self.vectorizer = CountVectorizer(stop_words=stop_words) 
 
     def train(self, train_x, train_y):
         train_feats = self.vectorizer.fit_transform(train_x)

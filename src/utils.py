@@ -15,10 +15,30 @@ def load_dataset():
                 data.append(json.loads(line))
 
     df = pd.json_normalize(data)
-    df.drop(columns=["label2", "label2_confidence"], inplace=True)
     
     data_x, data_y = df["string"], df["label"]
     return data_x, data_y
+
+def load_dataset_split():
+    paths = [r"../data/scicite/train.jsonl", 
+             r"../data/scicite/dev.jsonl"]
+
+    train = []
+    test = []
+
+    for path in paths:
+        with open(path, "r") as f:
+            for line in f:
+                train.append(json.loads(line))
+
+    with open(r"../data/scicite/test.jsonl") as f:
+        for line in f:
+            test.append(json.loads(line))
+
+    train_df = pd.json_normalize(train)
+    test_df = pd.json_normalize(test)
+    
+    return train_df["string"], train_df["label"], test_df["string"], test_df["label"]
 
 def save_features(features, data_y, filename):
     path = r"../data/features/" + filename
@@ -40,14 +60,6 @@ def load_features(filename):
 
 
 # if __name__ == "__main__":
-#     data_x, data_y = load_dataset()
+#     train_x, train_y, test_x, test_y = load_dataset_split()
 
-#     train_x, test_x, train_y, test_y = train_test_split(data_x, data_y, test_size=0.2)
-
-#     feat_sel = ["pos_tag", "word_vector", "word_embedding"]
-
-#     train_feats = extract_features(train_x, feat_sel, True)
-#     test_feats = extract_features(test_x, feat_sel, False)
-
-#     save_features(train_feats, train_y, "train.csv")
-#     save_features(test_feats, test_y, "test.csv")
+#     print(len(train_x), len(test_x))
