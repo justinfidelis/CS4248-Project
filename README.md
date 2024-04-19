@@ -1,4 +1,6 @@
-# CS4248 Project Group 14
+# CS4248 Project
+
+**Group 14**
 
 This repository contains code used in our evaluation of the performance of different models in classifying citation intent in academic papers.
 
